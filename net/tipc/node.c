@@ -55,8 +55,9 @@ static atomic_t tipc_num_links = ATOMIC_INIT(0);
 /*
  * A trivial power-of-two bitmask technique is used for speed, since this
  * operation is done for every incoming TIPC packet. The number of hash table
- * entries has been chosen so that no hash chain exceeds 8 nodes and will
- * usually be much smaller (typically only a single node).
+ * entries has been chosen so that a typical unicluster network will have hash
+ * chains with only a single node, and no unicluster network will have a hash
+ * chain longer than 8 nodes.
  */
 
 static inline unsigned int tipc_hashfn(u32 addr)
@@ -72,9 +73,6 @@ struct tipc_node *tipc_node_find(u32 addr)
 {
 	struct tipc_node *node;
 	struct hlist_node *pos;
-
-	if (unlikely(!in_own_cluster(addr)))
-		return NULL;
 
 	hlist_for_each_entry(node, pos, &node_htable[tipc_hashfn(addr)], hash) {
 		if (node->addr == addr)
@@ -271,7 +269,7 @@ static void node_established_contact(struct tipc_node *n_ptr)
 {
 	tipc_k_signal((Handler)tipc_named_node_up, n_ptr->addr);
 
-	if (n_ptr->bclink.supportable) {
+	if (n_ptr->bclink.supportable && in_own_cluster(n_ptr->addr)) {
 		n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 		tipc_bclink_add_node(n_ptr->addr);
 		n_ptr->bclink.supported = 1;
