@@ -55,6 +55,11 @@ static inline int in_own_cluster(u32 addr)
 	return !((addr ^ tipc_own_addr) >> 12);
 }
 
+static inline int in_own_zone(u32 addr)
+{
+	return !((addr ^ tipc_own_addr) >> 24);
+}
+
 /**
  * in_own_node_safe - test for node inclusion; <0.0.0> always matches
  */

@@ -122,12 +122,17 @@ static struct sk_buff *named_prepare_buf(u32 type, u32 size, u32 dest)
 	return buf;
 }
 
-static void named_cluster_distribute(struct sk_buff *buf)
+static void named_cluster_distribute(struct sk_buff *buf, u32 scope)
 {
 	struct sk_buff *buf_copy;
 	struct tipc_node *n_ptr;
 
 	list_for_each_entry(n_ptr, &tipc_node_list, list) {
+		if ((scope == TIPC_ZONE_SCOPE) && !in_own_zone(n_ptr->addr))
+			continue;
+		if ((scope == TIPC_CLUSTER_SCOPE) &&
+		    !in_own_cluster(n_ptr->addr))
+			continue;
 		if (tipc_node_active_links(n_ptr)) {
 			buf_copy = skb_copy(buf, GFP_ATOMIC);
 			if (!buf_copy)
@@ -163,7 +168,7 @@ void tipc_named_publish(struct publication *publ)
 
 	item = (struct distr_item *)msg_data(buf_msg(buf));
 	publ_to_item(item, publ);
-	named_cluster_distribute(buf);
+	named_cluster_distribute(buf, publ->scope);
 }
 
 /**
@@ -189,7 +194,7 @@ void tipc_named_withdraw(struct publication *publ)
 
 	item = (struct distr_item *)msg_data(buf_msg(buf));
 	publ_to_item(item, publ);
-	named_cluster_distribute(buf);
+	named_cluster_distribute(buf, publ->scope);
 }
 
 /**
@@ -227,7 +232,7 @@ static void named_distribute(struct list_head *message_list, u32 node,
 }
 
 /**
- * tipc_named_node_up - tell specified node about all publications by this node
+ * tipc_named_node_up - tell specified node about publications by this node
  */
 
 void tipc_named_node_up(unsigned long nodearg)
@@ -237,6 +242,9 @@ void tipc_named_node_up(unsigned long nodearg)
 	struct list_head message_list;
 	u32 node = (u32)nodearg;
 	u32 max_item_buf = 0;
+
+	if (!in_own_zone(node))
+		return;
 
 	/* compute maximum amount of publication data to send per message */
 
@@ -259,7 +267,9 @@ void tipc_named_node_up(unsigned long nodearg)
 	INIT_LIST_HEAD(&message_list);
 
 	read_lock_bh(&tipc_nametbl_lock);
-	named_distribute(&message_list, node, TIPC_CLUSTER_SCOPE, max_item_buf);
+	if (in_own_cluster(node))
+		named_distribute(&message_list, node, TIPC_CLUSTER_SCOPE,
+				 max_item_buf);
 	named_distribute(&message_list, node, TIPC_ZONE_SCOPE, max_item_buf);
 	read_unlock_bh(&tipc_nametbl_lock);
 
