@@ -995,11 +995,7 @@ int tipc_publish(u32 ref, unsigned int scope, struct tipc_name_seq const *seq)
 
 	if (p_ptr->connected)
 		goto exit;
-	key = ref + p_ptr->pub_count + 1;
-	if (key == ref) {
-		res = -EADDRINUSE;
-		goto exit;
-	}
+	key = (p_ptr->pub_count + 1) << 2 | scope;
 	publ = tipc_nametbl_publish(seq->type, seq->lower, seq->upper,
 				    scope, p_ptr->ref, key);
 	if (publ) {

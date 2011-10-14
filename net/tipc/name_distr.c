@@ -117,6 +117,7 @@ static struct sk_buff *named_prepare_buf(u32 type, u32 size, u32 dest)
 		msg = buf_msg(buf);
 		tipc_msg_init(msg, NAME_DISTRIBUTOR, type, INT_H_SIZE, dest);
 		msg_set_size(msg, INT_H_SIZE + size);
+		msg_set_item_flags(msg, 1);
 	}
 	return buf;
 }
@@ -302,6 +303,7 @@ void tipc_named_recv(struct sk_buff *buf)
 	struct tipc_msg *msg = buf_msg(buf);
 	struct distr_item *item = (struct distr_item *)msg_data(msg);
 	u32 count = msg_data_sz(msg) / ITEM_SIZE;
+	u32 scope_mask = (msg_item_flags(msg) & 0x01) ? 3 : 0;
 
 	write_lock_bh(&tipc_nametbl_lock);
 	while (count--) {
@@ -309,7 +311,8 @@ void tipc_named_recv(struct sk_buff *buf)
 			publ = tipc_nametbl_insert_publ(ntohl(item->type),
 							ntohl(item->lower),
 							ntohl(item->upper),
-							TIPC_CLUSTER_SCOPE,
+							ntohl(item->key) &
+							scope_mask,
 							msg_orignode(msg),
 							ntohl(item->ref),
 							ntohl(item->key));

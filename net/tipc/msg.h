@@ -692,6 +692,16 @@ static inline void msg_set_redundant_link(struct tipc_msg *m, u32 r)
  * Word 9
  */
 
+static inline u32 msg_item_flags(struct tipc_msg *m)
+{
+	return msg_bits(m, 9, 16, 0xff);
+}
+
+static inline void msg_set_item_flags(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 9, 16, 0xff, n);
+}
+
 static inline u32 msg_msgcnt(struct tipc_msg *m)
 {
 	return msg_bits(m, 9, 16, 0xffff);
