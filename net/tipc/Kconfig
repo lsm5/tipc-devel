@@ -29,6 +29,19 @@ config TIPC_ADVANCED
 	  Saying Y here will open some advanced configuration for TIPC.
 	  Most users do not need to bother; if unsure, just say N.
 
+config TIPC_BEARERS
+	int "Maximum number of bearers"
+	depends on TIPC_ADVANCED
+	range 1 8
+	default "2"
+	help
+	  Specifies how many network interfaces TIPC may use.
+	  Can range from 1 to 8 interfaces; default is 2.
+
+	  Setting this to a smaller value saves some memory,
+	  setting it to higher allows the creation of networks
+	  with complex topologies.
+
 config TIPC_PORTS
 	int "Maximum number of ports in a node"
 	depends on TIPC_ADVANCED

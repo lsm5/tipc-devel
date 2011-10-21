@@ -39,7 +39,11 @@
 
 #include "bcast.h"
 
-#define MAX_BEARERS	2
+#ifndef CONFIG_TIPC_BEARERS
+#define CONFIG_TIPC_BEARERS 2
+#endif
+
+#define MAX_BEARERS	CONFIG_TIPC_BEARERS
 #define MAX_MEDIA	2
 
 /*
