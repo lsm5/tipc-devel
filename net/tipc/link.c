@@ -1454,8 +1454,16 @@ static void link_reset_all(unsigned long addr)
 
 	tipc_node_lock(n_ptr);
 
-	warn("Resetting all links to %s\n",
-	     tipc_addr_string_fill(addr_string, n_ptr->addr));
+	tipc_addr_string_fill(addr_string, n_ptr->addr);
+	info("Broadcast link info for %s\n", addr_string);
+	info("Supportable: %d,  ", n_ptr->bclink.supportable);
+	info("Supported: %d,  ", n_ptr->bclink.supported);
+	info("Acked: %u\n", n_ptr->bclink.acked);
+	info("Last in: %u,  ", n_ptr->bclink.last_in);
+	info("Oos state: %u,  ", n_ptr->bclink.oos_state);
+	info("Last sent: %u\n", n_ptr->bclink.last_sent);
+
+	warn("Resetting all links to %s\n", addr_string);
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		if (n_ptr->links[i]) {
@@ -1486,27 +1494,13 @@ static void link_retransmit_failure(struct link *l_ptr, struct sk_buff *buf)
 		/* Handle failure on broadcast link */
 
 		struct tipc_node *n_ptr;
-		char addr_string[16];
 
 		info("Msg seq number: %u,  ", msg_seqno(msg));
 		info("Outstanding acks: %lu\n",
 		     (u32)(unsigned long) TIPC_SKB_CB(buf)->handle);
 
 		n_ptr = tipc_bclink_retransmit_to();
-		tipc_node_lock(n_ptr);
-
-		tipc_addr_string_fill(addr_string, n_ptr->addr);
-		info("Broadcast link info for %s\n", addr_string);
-		info("Supportable: %d,  ", n_ptr->bclink.supportable);
-		info("Supported: %d,  ", n_ptr->bclink.supported);
-		info("Acked: %u\n", n_ptr->bclink.acked);
-		info("Last in: %u,  ", n_ptr->bclink.last_in);
-		info("Oos state: %u,  ", n_ptr->bclink.oos_state);
-		info("Last sent: %u\n", n_ptr->bclink.last_sent);
-
 		tipc_k_signal((Handler)link_reset_all, (unsigned long)n_ptr->addr);
-
-		tipc_node_unlock(n_ptr);
 
 		l_ptr->stale_count = 0;
 	}
