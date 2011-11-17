@@ -51,6 +51,8 @@
 #define CONFIG_TIPC_LOG 0
 #endif
 
+static int max_ports = CONFIG_TIPC_PORTS;
+
 /* global variables used by multiple sub-systems within TIPC */
 
 int tipc_random;
@@ -177,7 +179,7 @@ static int __init tipc_init(void)
 	tipc_remote_management = 1;
 	tipc_max_publications = 10000;
 	tipc_max_subscriptions = 2000;
-	tipc_max_ports = CONFIG_TIPC_PORTS;
+	tipc_max_ports = max_ports;
 	tipc_net_id = 4711;
 
 	res = tipc_core_start();
@@ -201,3 +203,6 @@ module_exit(tipc_exit);
 MODULE_DESCRIPTION("TIPC: Transparent Inter Process Communication");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(TIPC_MOD_VER);
+
+module_param(max_ports, int, S_IRUGO);
+MODULE_PARM_DESC(max_ports, "Maximum number of ports (127-65535)");
