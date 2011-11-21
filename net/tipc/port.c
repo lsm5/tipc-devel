@@ -384,7 +384,6 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	struct sk_buff *rbuf;
 	struct tipc_msg *rmsg;
 	int hdr_sz;
-	u32 imp;
 	u32 data_sz = msg_data_sz(msg);
 	u32 src_node;
 	u32 rmsg_sz;
@@ -414,11 +413,8 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	rmsg = buf_msg(rbuf);
 	skb_copy_to_linear_data(rbuf, msg, rmsg_sz);
 
-	if (msg_connected(rmsg)) {
-		imp = msg_importance(rmsg);
-		if (imp < TIPC_CRITICAL_IMPORTANCE)
-			msg_set_importance(rmsg, ++imp);
-	}
+	if (msg_connected(rmsg))
+		msg_set_importance(rmsg, TIPC_CRITICAL_IMPORTANCE);
 	msg_set_non_seq(rmsg, 0);
 	msg_set_size(rmsg, rmsg_sz);
 	msg_set_errcode(rmsg, err);
@@ -526,7 +522,6 @@ static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *p_ptr, u32 er
 {
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
-	u32 imp;
 
 	if (!p_ptr->connected)
 		return NULL;
@@ -537,9 +532,7 @@ static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *p_ptr, u32 er
 		memcpy(msg, &p_ptr->phdr, BASIC_H_SIZE);
 		msg_set_hdr_sz(msg, BASIC_H_SIZE);
 		msg_set_size(msg, BASIC_H_SIZE);
-		imp = msg_importance(msg);
-		if (imp < TIPC_CRITICAL_IMPORTANCE)
-			msg_set_importance(msg, ++imp);
+		msg_set_importance(msg, TIPC_CRITICAL_IMPORTANCE);
 		msg_set_errcode(msg, err);
 	}
 	return buf;
