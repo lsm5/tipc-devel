@@ -1372,7 +1372,6 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 		   int flags)
 {
 	struct sock *sk = sock->sk;
-	struct sockaddr_tipc *dst = (struct sockaddr_tipc *)dest;
 	struct msghdr m = {NULL,};
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
@@ -1400,18 +1399,6 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	}
 	if (sock->state != SS_UNCONNECTED) {
 		res = -EISCONN;
-		goto exit;
-	}
-
-	/*
-	 * Reject connection attempt using multicast address
-	 *
-	 * Note: send_msg() validates the rest of the address fields,
-	 *       so there's no need to do it here
-	 */
-
-	if (dst->addrtype == TIPC_ADDR_MCAST) {
-		res = -EINVAL;
 		goto exit;
 	}
 
