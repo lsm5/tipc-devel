@@ -1381,13 +1381,6 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 
 	lock_sock(sk);
 
-	/* For now, TIPC does not allow use of connect() with DGRAM/RDM types */
-
-	if (sock->state == SS_READY) {
-		res = -EOPNOTSUPP;
-		goto exit;
-	}
-
 	/* For now, TIPC does not support the non-blocking form of connect() */
 
 	if (flags & O_NONBLOCK) {
@@ -1790,7 +1783,7 @@ static const struct proto_ops msg_ops = {
 	.family		= AF_TIPC,
 	.release	= release,
 	.bind		= bind,
-	.connect	= connect,
+	.connect	= sock_no_connect,
 	.socketpair	= sock_no_socketpair,
 	.accept		= sock_no_accept,
 	.getname	= get_name,
