@@ -42,7 +42,8 @@
 #include "msg.h"
 #include "node_subscr.h"
 
-#define TIPC_FLOW_CONTROL_WIN 512
+#define TIPC_CONN_MSG_WINDOW	1024
+#define TIPC_CONN_MSG_THRESHOLD	(TIPC_CONN_MSG_WINDOW >> 1)
 
 typedef void (*tipc_msg_err_event) (void *usr_handle, u32 portref,
 		struct sk_buff **buf, unsigned char const *data,
@@ -260,7 +261,7 @@ static inline struct tipc_port *tipc_port_deref(u32 ref)
 
 static inline int tipc_port_congested(struct tipc_port *p_ptr)
 {
-	return (p_ptr->sent - p_ptr->acked) >= (TIPC_FLOW_CONTROL_WIN * 2);
+	return (p_ptr->sent - p_ptr->acked) >= TIPC_CONN_MSG_WINDOW;
 }
 
 #endif

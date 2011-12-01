@@ -738,7 +738,7 @@ static void port_dispatcher_sigh(void *dummy)
 				dsz = msg_data_sz(msg);
 				if (unlikely(dsz &&
 					     (++p_ptr->conn_unacked >=
-					      TIPC_FLOW_CONTROL_WIN)))
+					      TIPC_CONN_MSG_THRESHOLD)))
 					tipc_acknowledge(dref,
 							 p_ptr->conn_unacked);
 				skb_pull(buf, msg_hdr_sz(msg));
