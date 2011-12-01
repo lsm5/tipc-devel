@@ -113,7 +113,7 @@ struct user_port {
  * @user_port: ptr to user port associated with port (if any)
  * @wait_list: adjacent ports in list of ports waiting on link congestion
  * @waiting_pkts:
- * @sent: # of non-empty messages sent by port
+ * @sent: # of non-empty messages sent to connected port's peer
  * @acked: # of non-empty message acknowledgements from connected port's peer
  * @publications: list of publications for port
  * @pub_count: total # of publications port has made during its lifetime

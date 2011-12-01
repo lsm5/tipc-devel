@@ -600,8 +600,11 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 					     total_len);
 		}
 		if (likely(res != -ELINKCONG)) {
-			if (needs_conn && (res >= 0))
+			if (needs_conn && (res >= 0)) {
 				sock->state = SS_CONNECTING;
+				if (total_len)
+					tport->sent++;
+			}
 			break;
 		}
 		if (timeout_val <= 0L) {

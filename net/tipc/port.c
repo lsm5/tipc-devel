@@ -1266,11 +1266,8 @@ int tipc_send2name(u32 ref, struct tipc_name const *name, unsigned int domain,
 			res = tipc_port_reject_sections(p_ptr, msg, msg_sect,
 							num_sect, total_len,
 							TIPC_ERR_NO_NODE);
-		if (likely(res != -ELINKCONG)) {
-			if (res > 0)
-				p_ptr->sent++;
+		if (likely(res != -ELINKCONG))
 			return res;
-		}
 		if (port_unreliable(p_ptr)) {
 			return total_len;
 		}
@@ -1312,11 +1309,8 @@ int tipc_send2port(u32 ref, struct tipc_portid const *dest,
 	else
 		res = tipc_port_reject_sections(p_ptr, msg, msg_sect, num_sect,
 						total_len, TIPC_ERR_NO_NODE);
-	if (likely(res != -ELINKCONG)) {
-		if (res > 0)
-			p_ptr->sent++;
+	if (likely(res != -ELINKCONG))
 		return res;
-	}
 	if (port_unreliable(p_ptr)) {
 		return total_len;
 	}
@@ -1354,11 +1348,8 @@ int tipc_send_buf2port(u32 ref, struct tipc_portid const *dest,
 		res = tipc_port_recv_msg(buf);
 	else
 		res = tipc_send_buf_fast(buf, dest->node);
-	if (likely(res != -ELINKCONG)) {
-		if (res > 0)
-			p_ptr->sent++;
+	if (likely(res != -ELINKCONG))
 		return res;
-	}
 	if (port_unreliable(p_ptr))
 		return dsz;
 	return -ELINKCONG;
