@@ -98,7 +98,7 @@ static void tipc_printbuf_move(struct print_buf *pb_to,
  * becomes a null device that discards anything written to it.
  */
 
-void tipc_printbuf_init(struct print_buf *pb, char *raw, u32 size)
+void tipc_printbuf_init(struct print_buf *pb, char *raw, size_t size)
 {
 	pb->buf = raw;
 	pb->crs = raw;
@@ -149,7 +149,7 @@ static int tipc_printbuf_empty(struct print_buf *pb)
  * Returns length of print buffer data string (including trailing NUL)
  */
 
-int tipc_printbuf_validate(struct print_buf *pb)
+size_t tipc_printbuf_validate(struct print_buf *pb)
 {
 	char *err = "\n\n*** PRINT BUFFER OVERFLOW ***\n\n";
 	char *cp_buf;
@@ -186,7 +186,7 @@ int tipc_printbuf_validate(struct print_buf *pb)
 static void tipc_printbuf_move(struct print_buf *pb_to,
 			       struct print_buf *pb_from)
 {
-	int len;
+	size_t len;
 
 	/* Handle the cases where contents can't be moved */
 
@@ -231,8 +231,8 @@ static void tipc_printbuf_move(struct print_buf *pb_to,
 
 void tipc_printf(struct print_buf *pb, const char *fmt, ...)
 {
-	int chars_to_add;
-	int chars_left;
+	size_t chars_to_add;
+	size_t chars_left;
 	char save_char;
 
 	spin_lock_bh(&print_lock);
@@ -271,7 +271,7 @@ void tipc_printf(struct print_buf *pb, const char *fmt, ...)
  * @log_size: print buffer size to use
  */
 
-int tipc_log_resize(int log_size)
+int tipc_log_resize(size_t log_size)
 {
 	int res = 0;
 
@@ -296,7 +296,7 @@ int tipc_log_resize(int log_size)
  * tipc_log_resize_cmd - reconfigure size of TIPC log buffer
  */
 
-struct sk_buff *tipc_log_resize_cmd(const void *req_tlv_area, int req_tlv_space)
+struct sk_buff *tipc_log_resize_cmd(const void *req_tlv_area, u32 req_tlv_space)
 {
 	u32 value;
 
@@ -304,7 +304,7 @@ struct sk_buff *tipc_log_resize_cmd(const void *req_tlv_area, int req_tlv_space)
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value != delimit(value, 0, 32768))
+	if (value > 32768)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (log size must be 0-32768)");
 	if (tipc_log_resize(value))
@@ -331,7 +331,7 @@ struct sk_buff *tipc_log_dump(void)
 	} else {
 		struct tlv_desc *rep_tlv;
 		struct print_buf pb;
-		int str_len;
+		size_t str_len;
 
 		str_len = min(TIPC_LOG->size, 32768u);
 		spin_unlock_bh(&print_lock);

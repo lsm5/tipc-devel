@@ -382,11 +382,6 @@ static inline void msg_set_destnode(struct tipc_msg *m, u32 a)
 	msg_set_word(m, 7, a);
 }
 
-static inline int msg_is_dest(struct tipc_msg *m, u32 d)
-{
-	return msg_short(m) || (msg_destnode(m) == d);
-}
-
 static inline u32 msg_nametype(struct tipc_msg *m)
 {
 	return msg_word(m, 8);
@@ -513,6 +508,16 @@ static inline u32 msg_seq_gap(struct tipc_msg *m)
 static inline void msg_set_seq_gap(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 1, 16, 0x1fff, n);
+}
+
+static inline u32 msg_node_sig(struct tipc_msg *m)
+{
+	return msg_bits(m, 1, 0, 0xffff);
+}
+
+static inline void msg_set_node_sig(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 1, 0, 0xffff, n);
 }
 
 
@@ -733,15 +738,5 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
 int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 		   u32 num_sect, unsigned int total_len,
 			    int max_size, int usrmem, struct sk_buff **buf);
-
-static inline void msg_set_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
-{
-	memcpy(&((int *)m)[5], a, sizeof(*a));
-}
-
-static inline void msg_get_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
-{
-	memcpy(a, &((int *)m)[5], sizeof(*a));
-}
 
 #endif

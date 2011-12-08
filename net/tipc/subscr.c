@@ -56,7 +56,6 @@ struct subscriber {
 
 /**
  * struct top_srv - TIPC network topology subscription service
- * @user_ref: TIPC userid of subscription service
  * @setup_port: reference to TIPC port that handles subscription requests
  * @subscription_count: number of active subscriptions (not subscribers!)
  * @subscriber_list: list of ports subscribing to service
@@ -535,7 +534,6 @@ int tipc_subscr_start(void)
 	struct tipc_name_seq seq = {TIPC_TOP_SRV, TIPC_TOP_SRV, TIPC_TOP_SRV};
 	int res;
 
-	memset(&topsrv, 0, sizeof(topsrv));
 	spin_lock_init(&topsrv.lock);
 	INIT_LIST_HEAD(&topsrv.subscriber_list);
 
@@ -552,7 +550,7 @@ int tipc_subscr_start(void)
 	if (res)
 		goto failed;
 
-	res = tipc_nametbl_publish_rsv(topsrv.setup_port, TIPC_NODE_SCOPE, &seq);
+	res = tipc_publish(topsrv.setup_port, TIPC_NODE_SCOPE, &seq);
 	if (res) {
 		tipc_deleteport(topsrv.setup_port);
 		topsrv.setup_port = 0;

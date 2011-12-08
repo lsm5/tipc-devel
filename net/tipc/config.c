@@ -44,8 +44,8 @@ static u32 config_port_ref;
 static DEFINE_SPINLOCK(config_lock);
 
 static const void *req_tlv_area;	/* request message TLV area */
-static int req_tlv_space;		/* request message TLV area size */
-static int rep_headroom;		/* reply message headroom to use */
+static u32 req_tlv_space;		/* request message TLV area size */
+static u32 rep_headroom;		/* reply message headroom to use */
 
 
 struct sk_buff *tipc_cfg_reply_alloc(int payload_size)
@@ -59,7 +59,7 @@ struct sk_buff *tipc_cfg_reply_alloc(int payload_size)
 }
 
 int tipc_cfg_append_tlv(struct sk_buff *buf, int tlv_type,
-			void *tlv_data, int tlv_data_size)
+			void *tlv_data, size_t tlv_data_size)
 {
 	struct tlv_desc *tlv = (struct tlv_desc *)skb_tail_pointer(buf);
 	int new_tlv_space = TLV_SPACE(tlv_data_size);
@@ -96,7 +96,7 @@ static struct sk_buff *tipc_cfg_reply_unsigned(u32 value)
 struct sk_buff *tipc_cfg_reply_string_type(u16 tlv_type, char *string)
 {
 	struct sk_buff *buf;
-	int string_len = strlen(string) + 1;
+	size_t string_len = strlen(string) + 1;
 
 	buf = tipc_cfg_reply_alloc(TLV_SPACE(string_len));
 	if (buf)
@@ -111,7 +111,7 @@ static struct sk_buff *tipc_show_stats(void)
 	struct sk_buff *buf;
 	struct tlv_desc *rep_tlv;
 	struct print_buf pb;
-	int str_len;
+	size_t str_len;
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
@@ -179,18 +179,17 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (!tipc_addr_node_valid(addr))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (node address)");
-	if (tipc_mode == TIPC_NET_MODE)
+	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
 
 	/*
-	 * Must release all spinlocks before calling start_net() because
-	 * Linux version of TIPC calls eth_media_start() which calls
-	 * register_netdevice_notifier() which may block!
-	 *
-	 * Temporarily releasing the lock should be harmless for non-Linux TIPC,
-	 * but Linux version of eth_media_start() should really be reworked
-	 * so that it can be called with spinlocks held.
+	 * Must temporarily release configuration spinlock while switching into
+	 * networking mode as it calls tipc_eth_media_start(), which may sleep.
+	 * Releasing the lock is harmless as other locally-issued configuration
+	 * commands won't occur until this one completes, and remotely-issued
+	 * configuration commands can't be received until a local configuration
+	 * command to enable the first bearer is received and processed.
 	 */
 
 	spin_unlock_bh(&config_lock);
@@ -253,11 +252,8 @@ static struct sk_buff *cfg_set_max_ports(void)
 	if (value != delimit(value, 127, 65535))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max ports must be 127-65535)");
-	if (tipc_mode != TIPC_NOT_RUNNING)
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-			" (cannot change max ports while TIPC is active)");
-	tipc_max_ports = value;
-	return tipc_cfg_reply_none();
+	return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+		" (cannot change max ports while TIPC is active)");
 }
 
 static struct sk_buff *cfg_set_netid(void)
@@ -272,7 +268,7 @@ static struct sk_buff *cfg_set_netid(void)
 	if (value != delimit(value, 1, 9999))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network id must be 1-9999)");
-	if (tipc_mode == TIPC_NET_MODE)
+	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 			" (cannot change network id once TIPC has joined a network)");
 	tipc_net_id = value;
@@ -280,7 +276,7 @@ static struct sk_buff *cfg_set_netid(void)
 }
 
 struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area,
-				int request_space, int reply_headroom)
+				u32 request_space, u32 reply_headroom)
 {
 	struct sk_buff *rep_tlv_buf;
 
@@ -294,7 +290,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 
 	/* Check command authorization */
 
-	if (likely(orig_node == tipc_own_addr)) {
+	if (likely(in_own_node_safe(orig_node))) {
 		/* command is permitted */
 	} else if (cmd >= 0x8000) {
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
@@ -451,14 +447,14 @@ static void cfg_named_msg_event(void *userdata,
 	rep_buf = tipc_cfg_do_cmd(orig->node,
 				  ntohs(req_hdr->tcm_type),
 				  msg + sizeof(*req_hdr),
-				  size - sizeof(*req_hdr),
+				  (u32)(size - sizeof(*req_hdr)),
 				  BUF_HEADROOM + MAX_H_SIZE + sizeof(*rep_hdr));
 	if (rep_buf) {
 		skb_push(rep_buf, sizeof(*rep_hdr));
 		rep_hdr = (struct tipc_cfg_msg_hdr *)rep_buf->data;
 		memcpy(rep_hdr, req_hdr, sizeof(*rep_hdr));
 		rep_hdr->tcm_len = htonl(rep_buf->len);
-		rep_hdr->tcm_flags &= htons(~TCM_F_REQUEST);
+		rep_hdr->tcm_flags &= htons((short)(~TCM_F_REQUEST));
 	} else {
 		rep_buf = *buf;
 		*buf = NULL;
@@ -482,7 +478,7 @@ int tipc_cfg_init(void)
 
 	seq.type = TIPC_CFG_SRV;
 	seq.lower = seq.upper = tipc_own_addr;
-	res = tipc_nametbl_publish_rsv(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+	res = tipc_publish(config_port_ref, TIPC_ZONE_SCOPE, &seq);
 	if (res)
 		goto failed;
 
@@ -493,10 +489,23 @@ failed:
 	return res;
 }
 
+void tipc_cfg_reinit(void)
+{
+	struct tipc_name_seq seq;
+	int res;
+
+	seq.type = TIPC_CFG_SRV;
+	seq.lower = seq.upper = 0;
+	tipc_withdraw(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+
+	seq.lower = seq.upper = tipc_own_addr;
+	res = tipc_publish(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+	if (res)
+		err("Unable to reinitialize configuration service\n");
+}
+
 void tipc_cfg_stop(void)
 {
-	if (config_port_ref) {
-		tipc_deleteport(config_port_ref);
-		config_port_ref = 0;
-	}
+	tipc_deleteport(config_port_ref);
+	config_port_ref = 0;
 }

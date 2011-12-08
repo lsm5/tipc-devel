@@ -77,7 +77,8 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 		   u32 num_sect, unsigned int total_len,
 			    int max_size, int usrmem, struct sk_buff **buf)
 {
-	int dsz, sz, hsz, pos, res, cnt;
+	int dsz, sz, hsz, pos, res;
+	u32 cnt;
 
 	dsz = total_len;
 	pos = hsz = msg_hdr_sz(hdr);
@@ -99,14 +100,14 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 					      msg_sect[cnt].iov_len);
 		else
 			skb_copy_to_linear_data_offset(*buf, pos,
-						       msg_sect[cnt].iov_base,
-						       msg_sect[cnt].iov_len);
-		pos += msg_sect[cnt].iov_len;
+				msg_sect[cnt].iov_base,
+				(unsigned int)msg_sect[cnt].iov_len);
+		pos += (int)msg_sect[cnt].iov_len;
 	}
 	if (likely(res))
 		return dsz;
 
-	buf_discard(*buf);
+	kfree_skb(*buf);
 	*buf = NULL;
 	return -EFAULT;
 }
@@ -333,11 +334,14 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 	}
 
 	if (msg_user(msg) ==  LINK_CONFIG) {
-		u32 *raw = (u32 *)msg;
-		struct tipc_media_addr *orig = (struct tipc_media_addr *)&raw[5];
+		struct tipc_media_addr orig;
+
 		tipc_printf(buf, ":DDOM(%x):", msg_dest_domain(msg));
 		tipc_printf(buf, ":NETID(%u):", msg_bc_netid(msg));
-		tipc_media_addr_printf(buf, orig);
+		memcpy(orig.value, &msg->hdr[5], sizeof(orig.value));
+		orig.media_id = 0;
+		orig.broadcast = 0;
+		tipc_media_addr_printf(buf, &orig);
 	}
 	if (msg_user(msg) == BCAST_PROTOCOL) {
 		tipc_printf(buf, "BCNACK:AFTER(%u):", msg_bcgap_after(msg));

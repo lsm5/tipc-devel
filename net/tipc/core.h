@@ -56,7 +56,7 @@
 #include <linux/vmalloc.h>
 
 
-#define TIPC_MOD_VER "2.0.0"
+#define TIPC_MOD_VER "2.1.0"
 
 struct tipc_msg;	/* msg.h */
 struct print_buf;	/* log.h */
@@ -130,13 +130,6 @@ void tipc_msg_dbg(struct print_buf *, struct tipc_msg *, const char *);
 #define ELINKCONG EAGAIN	/* link congestion <=> resource unavailable */
 
 /*
- * TIPC operating mode routines
- */
-#define TIPC_NOT_RUNNING  0
-#define TIPC_NODE_MODE    1
-#define TIPC_NET_MODE     2
-
-/*
  * Global configuration variables
  */
 
@@ -151,7 +144,6 @@ extern int tipc_remote_management;
  * Other global variables
  */
 
-extern int tipc_mode;
 extern int tipc_random;
 extern const char tipc_alphabet[];
 
@@ -278,29 +270,5 @@ static inline struct tipc_msg *buf_msg(struct sk_buff *skb)
 }
 
 extern struct sk_buff *tipc_buf_acquire(u32 size);
-
-/**
- * buf_discard - frees a TIPC message buffer
- * @skb: message buffer
- *
- * Frees a message buffer.  If passed NULL, just returns.
- */
-
-static inline void buf_discard(struct sk_buff *skb)
-{
-	kfree_skb(skb);
-}
-
-/**
- * buf_linearize - convert a TIPC message buffer into a single contiguous piece
- * @skb: message buffer
- *
- * Returns 0 on success.
- */
-
-static inline int buf_linearize(struct sk_buff *skb)
-{
-	return skb_linearize(skb);
-}
 
 #endif

@@ -56,6 +56,24 @@ static inline int in_own_cluster(u32 addr)
 }
 
 /**
+ * in_own_node_safe - test for node inclusion; <0.0.0> always matches
+ */
+
+static inline int in_own_node_safe(u32 addr)
+{
+	return (addr == tipc_own_addr) || !addr;
+}
+
+/**
+ * in_own_cluster_safe - test for cluster inclusion; <0.0.0> always matches
+ */
+
+static inline int in_own_cluster_safe(u32 addr)
+{
+	return in_own_cluster(addr) || !addr;
+}
+
+/**
  * addr_domain - convert 2-bit scope value to equivalent message lookup domain
  *
  * Needed when address of a named message must be looked up a second time

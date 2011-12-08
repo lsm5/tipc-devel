@@ -53,7 +53,6 @@
 
 /* global variables used by multiple sub-systems within TIPC */
 
-int tipc_mode = TIPC_NOT_RUNNING;
 int tipc_random;
 
 const char tipc_alphabet[] =
@@ -99,8 +98,8 @@ struct sk_buff *tipc_buf_acquire(u32 size)
 
 static void tipc_core_stop_net(void)
 {
-	tipc_eth_media_stop();
 	tipc_net_stop();
+	tipc_eth_media_stop();
 }
 
 /**
@@ -125,11 +124,6 @@ int tipc_core_start_net(unsigned long addr)
 
 static void tipc_core_stop(void)
 {
-	if (tipc_mode != TIPC_NODE_MODE)
-		return;
-
-	tipc_mode = TIPC_NOT_RUNNING;
-
 	tipc_netlink_stop();
 	tipc_handler_stop();
 	tipc_cfg_stop();
@@ -148,11 +142,7 @@ static int tipc_core_start(void)
 {
 	int res;
 
-	if (tipc_mode != TIPC_NOT_RUNNING)
-		return -ENOPROTOOPT;
-
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
-	tipc_mode = TIPC_NODE_MODE;
 
 	res = tipc_handler_start();
 	if (!res)
@@ -160,9 +150,9 @@ static int tipc_core_start(void)
 	if (!res)
 		res = tipc_nametbl_init();
 	if (!res)
-		res = tipc_k_signal((Handler)tipc_subscr_start, 0);
+		res = tipc_subscr_start();
 	if (!res)
-		res = tipc_k_signal((Handler)tipc_cfg_init, 0);
+		res = tipc_cfg_init();
 	if (!res)
 		res = tipc_netlink_start();
 	if (!res)

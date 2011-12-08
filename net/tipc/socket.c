@@ -126,7 +126,7 @@ static atomic_t tipc_queue_size = ATOMIC_INIT(0);
 
 static void advance_rx_queue(struct sock *sk)
 {
-	buf_discard(__skb_dequeue(&sk->sk_receive_queue));
+	kfree_skb(__skb_dequeue(&sk->sk_receive_queue));
 	atomic_dec(&tipc_queue_size);
 }
 
@@ -142,7 +142,7 @@ static void discard_rx_queue(struct sock *sk)
 
 	while ((buf = __skb_dequeue(&sk->sk_receive_queue))) {
 		atomic_dec(&tipc_queue_size);
-		buf_discard(buf);
+		kfree_skb(buf);
 	}
 }
 
@@ -184,9 +184,6 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol,
 	struct tipc_port *tp_ptr;
 
 	/* Validate arguments */
-
-	if (!net_eq(net, &init_net))
-		return -EAFNOSUPPORT;
 
 	if (unlikely(protocol != 0))
 		return -EPROTONOSUPPORT;
@@ -291,7 +288,7 @@ static int release(struct socket *sock)
 			break;
 		atomic_dec(&tipc_queue_size);
 		if (TIPC_SKB_CB(buf)->handle != 0)
-			buf_discard(buf);
+			kfree_skb(buf);
 		else {
 			if ((sock->state == SS_CONNECTING) ||
 			    (sock->state == SS_CONNECTED)) {
@@ -357,6 +354,9 @@ static int bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
 		addr->addr.nameseq.upper = addr->addr.nameseq.lower;
 	else if (addr->addrtype != TIPC_ADDR_NAMESEQ)
 		return -EAFNOSUPPORT;
+
+	if (addr->addr.nameseq.type < TIPC_RESERVED_TYPES)
+		return -EACCES;
 
 	return (addr->scope > 0) ?
 		tipc_publish(portref, addr->scope, &addr->addr.nameseq) :
@@ -1229,6 +1229,9 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 	 * BE SECURITY IMPLICATIONS INHERENT IN REJECTING INVALID TRAFFIC
 	 */
 
+	if (msg_type(msg) > TIPC_DIRECT_MSG)
+		return TIPC_ERR_NO_PORT;
+
 	if (sock->state == SS_READY) {
 		if (msg_connected(msg))
 			return TIPC_ERR_NO_PORT;
@@ -1236,7 +1239,8 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 		if (msg_mcast(msg))
 			return TIPC_ERR_NO_PORT;
 		if (sock->state == SS_CONNECTED) {
-			if (!msg_connected(msg))
+			if (!msg_connected(msg) ||
+			    !tipc_port_peer_msg(tipc_sk_port(sk), msg))
 				return TIPC_ERR_NO_PORT;
 		} else if (sock->state == SS_CONNECTING) {
 			if (!msg_connected(msg) && (msg_errcode(msg) == 0))
@@ -1615,7 +1619,7 @@ restart:
 		if (buf) {
 			atomic_dec(&tipc_queue_size);
 			if (TIPC_SKB_CB(buf)->handle != 0) {
-				buf_discard(buf);
+				kfree_skb(buf);
 				goto restart;
 			}
 			tipc_disconnect(tport->ref);
