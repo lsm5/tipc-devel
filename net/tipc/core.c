@@ -41,6 +41,7 @@
 #include "name_table.h"
 #include "subscr.h"
 #include "config.h"
+#include "tunnel.h"
 
 
 #ifndef CONFIG_TIPC_PORTS
@@ -133,6 +134,7 @@ static void tipc_core_stop(void)
 	tipc_nametbl_stop();
 	tipc_ref_table_stop();
 	tipc_socket_stop();
+	tipc_dev_stop();
 	tipc_log_resize(0);
 }
 
@@ -159,6 +161,8 @@ static int tipc_core_start(void)
 		res = tipc_netlink_start();
 	if (!res)
 		res = tipc_socket_init();
+	if (!res)
+		res = tipc_dev_start();
 	if (res)
 		tipc_core_stop();
 

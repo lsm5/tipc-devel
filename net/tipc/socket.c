@@ -71,8 +71,6 @@ static struct proto tipc_proto;
 
 static int sockets_enabled;
 
-static atomic_t tipc_queue_size = ATOMIC_INIT(0);
-
 /*
  * Revised TIPC socket locking policy:
  *
@@ -127,7 +125,6 @@ static atomic_t tipc_queue_size = ATOMIC_INIT(0);
 static void advance_rx_queue(struct sock *sk)
 {
 	kfree_skb(__skb_dequeue(&sk->sk_receive_queue));
-	atomic_dec(&tipc_queue_size);
 }
 
 /**
@@ -141,7 +138,6 @@ static void discard_rx_queue(struct sock *sk)
 	struct sk_buff *buf;
 
 	while ((buf = __skb_dequeue(&sk->sk_receive_queue))) {
-		atomic_dec(&tipc_queue_size);
 		kfree_skb(buf);
 	}
 }
@@ -158,7 +154,6 @@ static void reject_rx_queue(struct sock *sk)
 
 	while ((buf = __skb_dequeue(&sk->sk_receive_queue))) {
 		tipc_reject_msg(buf, TIPC_ERR_NO_PORT);
-		atomic_dec(&tipc_queue_size);
 	}
 }
 
@@ -286,7 +281,6 @@ static int release(struct socket *sock)
 		buf = __skb_dequeue(&sk->sk_receive_queue);
 		if (buf == NULL)
 			break;
-		atomic_dec(&tipc_queue_size);
 		if (TIPC_SKB_CB(buf)->handle != 0)
 			kfree_skb(buf);
 		else {
@@ -1261,11 +1255,6 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 
 	/* Reject message if there isn't room to queue it */
 
-	recv_q_len = (u32)atomic_read(&tipc_queue_size);
-	if (unlikely(recv_q_len >= OVERLOAD_LIMIT_BASE)) {
-		if (rx_queue_full(msg, recv_q_len, OVERLOAD_LIMIT_BASE))
-			return TIPC_ERR_OVERLOAD;
-	}
 	recv_q_len = skb_queue_len(&sk->sk_receive_queue);
 	if (unlikely(recv_q_len >= (OVERLOAD_LIMIT_BASE / 2))) {
 		if (rx_queue_full(msg, recv_q_len, OVERLOAD_LIMIT_BASE / 2))
@@ -1275,7 +1264,6 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 	/* Enqueue message (finally!) */
 
 	TIPC_SKB_CB(buf)->handle = 0;
-	atomic_inc(&tipc_queue_size);
 	__skb_queue_tail(&sk->sk_receive_queue, buf);
 
 	/* Initiate connection termination for an incoming 'FIN' */
@@ -1600,7 +1588,6 @@ static int shutdown(struct socket *sock, int how)
 restart:
 		buf = __skb_dequeue(&sk->sk_receive_queue);
 		if (buf) {
-			atomic_dec(&tipc_queue_size);
 			if (TIPC_SKB_CB(buf)->handle != 0) {
 				kfree_skb(buf);
 				goto restart;
@@ -1741,7 +1728,9 @@ static int getsockopt(struct socket *sock,
 		/* no need to set "res", since already 0 at this point */
 		break;
 	case TIPC_NODE_RECVQ_DEPTH:
-		value = (u32)atomic_read(&tipc_queue_size);
+		/*For now, report socket recvq sz, 
+		 (tipc_queue_size variable removed)*/
+		value = skb_queue_len(&sk->sk_receive_queue);
 		break;
 	case TIPC_SOCK_RECVQ_DEPTH:
 		value = skb_queue_len(&sk->sk_receive_queue);
